@@ -81,31 +81,31 @@ ajustar_nomes <- function(x){
 		stringr::str_to_lower() %>%  #Converte todas as strings para minusculo
 		rm_accent() %>%       #Remove os acentos com a funcao criada acima
 		stringr::str_replace_all("[/' '.()]", "_") %>% #Substitui os caracteres especiais por "_"
-		stringr::str_replace_all("_+", "_") %>%        #Substitui os caracteres especiais por "_"   
-		stringr::str_replace_all("-", "_") %>%        #Substitui os caracteres especiais por "_"   
+		stringr::str_replace_all("_+", "_") %>%        #Substitui os caracteres especiais por "_"  
+		stringr::str_replace_all("-", "_") %>%        #Substitui os caracteres especiais por "_"  
 		stringr::str_replace("_$", "")                 #Substitui o caracter especiais por "_"
 }
 
 # Bases -----------------------------------------------------------------
 #Casos
-base <- read_csv("bases/base_pseudoanonimizada_sus-vs-privado.csv", 
-		 col_types = cols(fl_profsaude = col_factor(levels = c("NA", "0", "1")), 
+base <- read_csv("bases/base_pseudoanonimizada_sus-vs-privado.csv",
+		 col_types = cols(fl_profsaude = col_factor(levels = c("NA", "0", "1")),
 		 		 dt_nascimento = col_date(format = "%Y-%m-%d"),
 		 		 dt_notificacao = col_date(format = "%Y-%m-%d"),
 		 		 dt_inicio_sintomas = col_date(format = "%Y-%m-%d"),
-		 		 sint_dor_garganta = col_factor(levels = c("NAO", "SIM")), 
-		 		 sint_dispneia = col_factor(levels = c("NAO", "SIM")), 
-		 		 sint_febre = col_factor(levels = c("NAO", "SIM")), 
-		 		 sint_tosse = col_factor(levels = c("NAO", "SIM")), 
+		 		 sint_dor_garganta = col_factor(levels = c("NAO", "SIM")),
+		 		 sint_dispneia = col_factor(levels = c("NAO", "SIM")),
+		 		 sint_febre = col_factor(levels = c("NAO", "SIM")),
+		 		 sint_tosse = col_factor(levels = c("NAO", "SIM")),
 		 		 sexo = col_factor(levels = c("F", "M")),
 		 		 raca = col_factor(levels = c("Amarela", "Branca", "Indígena","Parda","Preta")),
-		 		 comorb_resp_cronica = col_factor(levels = c("NAO", "SIM")), 
-		 		 comorb_card_cronica = col_factor(levels = c("NAO", "SIM")), 
-		 		 comorb_dm = col_factor(levels = c("NAO", "SIM")), 
-		 		 comorb_drc = col_factor(levels = c("NAO", "SIM")), 
-		 		 comorb_imunossupressao = col_factor(levels = c("NAO", "SIM")), 
-		 		 comorb_gesta_altorisco = col_factor(levels = c("NAO", "SIM")), 
-		 		 comorb_dca_cromossomica = col_factor(levels = c("NAO", "SIM")), 
+		 		 comorb_resp_cronica = col_factor(levels = c("NAO", "SIM")),
+		 		 comorb_card_cronica = col_factor(levels = c("NAO", "SIM")),
+		 		 comorb_dm = col_factor(levels = c("NAO", "SIM")),
+		 		 comorb_drc = col_factor(levels = c("NAO", "SIM")),
+		 		 comorb_imunossupressao = col_factor(levels = c("NAO", "SIM")),
+		 		 comorb_gesta_altorisco = col_factor(levels = c("NAO", "SIM")),
+		 		 comorb_dca_cromossomica = col_factor(levels = c("NAO", "SIM")),
 		 		 data_obito = col_date(format = "%Y-%m-%d")))
 
 
@@ -120,6 +120,11 @@ base$idade <- (base$dt_inicio_sintomas - base$dt_nascimento)/365
 base$dt_nascimento <- NULL
 base$sint_outros <- NULL
 
+base %>%
+	group_by(not_sus) %>% summarise(idade = mean(idade),
+					obito = sum(obito ==1))
+
+
 base$territorio <- ajustar_nomes(base$unidade_ref)
 base$unidade_ref <- NULL
 base$territorio <- as.factor(base$territorio)
@@ -131,8 +136,6 @@ base$dt_notificacao <- NULL
 base$mes_sint <- month(base$dt_inicio_sintomas)
 base$mes_sint <- as.factor(base$mes_sint)
 base$dt_inicio_sintomas <- NULL
-base$center_idade <- scale(base$idade, center = T, scale = T) 
-base$idade <- NULL
 base <- as.data.frame(base)
 base <- na.omit(base)
 
@@ -145,7 +148,7 @@ base_sem_obito$not_sus <- as.factor(base_sem_obito$not_sus)
 Tr <- base$not_sus %>% as.numeric() %>% cbind()
 Y <- base$obito  %>% cbind()
 
-var1 <- base$center_idade
+var1 <- base$idade
 
 
 # Generate the task
@@ -166,7 +169,7 @@ lrns <- list(classif_rf, classif_probit,classif.h2o_glm, classif_ada, classif_gb
 rdesc <- makeResampleDesc("CV", iters = 5)
 
 # Benchmarking
-set.seed(1) 
+set.seed(1)
 bmr <- benchmark(lrns, task, rdesc, measures = list(auc,tp, tpr, mmce),keep.pred = T)
 
 pred <- getBMRPredictions(bmr)
@@ -195,7 +198,7 @@ MatchBalance(Tr ~ territorio +
 	     	comorb_imunossupressao +
 	     	comorb_dca_cromossomica +
 	     	mes_sint +
-	     	center_idade, match.out = rr1, nboots=0, data=base)
+	     	idade, match.out = rr1, nboots=0, data=base)
 
 qqplot(var1[rr1$index.control], var1[rr1$index.treated])
 abline(coef = c(0, 1), col = 2)
@@ -215,7 +218,7 @@ MatchBalance(Tr ~ territorio +
 	     	comorb_imunossupressao +
 	     	comorb_dca_cromossomica +
 	     	mes_sint +
-	     	center_idade, match.out = rr2, nboots=0, data=base)
+	     	idade, match.out = rr2, nboots=0, data=base)
 
 qqplot(var1[rr2$index.control], var1[rr2$index.treated])
 abline(coef = c(0, 1), col = 2)
@@ -249,7 +252,7 @@ MatchBalance(Tr ~ territorio +
 	     	comorb_imunossupressao +
 	     	comorb_dca_cromossomica +
 	     	mes_sint +
-	     	center_idade, match.out = rr3, nboots=0, data=base_sem_obito)
+	     	idade, match.out = rr3, nboots=0, data=base_sem_obito)
 qqplot(var1[rr3$index.control], var1[rr3$index.treated])
 abline(coef = c(0, 1), col = 2)
 
@@ -263,3 +266,49 @@ hlsens(rr2, Gamma=1.7, GammaInc=.05, .1)
 
 psens(rr3, Gamma=1.7, GammaInc=.05)
 hlsens(rr3, Gamma=1.7, GammaInc=.05, .1)
+
+library(MatchIt)
+
+
+match_nearest <- matchit(Tr ~ territorio +
+		sint_dor_garganta +
+		sint_dispneia +
+		sint_febre +
+		sint_tosse +
+		sexo +
+		raca +
+		comorb_resp_cronica +
+		comorb_card_cronica +
+		comorb_dm +
+		comorb_drc +
+		comorb_imunossupressao +
+		comorb_dca_cromossomica +
+		#mes_sint +
+		idade, data=base_sem_obito, method = "nearest")
+
+
+
+summary(match_nearest, standardize = T, interactions = T)
+
+plot(match_nearest)
+plot(match_nearest, type = "jitter")
+plot(match_nearest, type = "hist")
+
+
+library(Zelig)
+att <- zelig(Y ~ Tr + 
+	      	territorio +
+	      	sint_dor_garganta +
+	      	sint_dispneia +
+	      	sint_febre +
+	      	sint_tosse +
+	      	sexo +
+	      	raca +
+	      	comorb_resp_cronica +
+	      	comorb_card_cronica +
+	      	comorb_dm +
+	      	comorb_drc +
+	      	comorb_imunossupressao +
+	      	comorb_dca_cromossomica +
+	      	#mes_sint +
+	      	idade, data = match.data(match_nearest), model = "logit")
