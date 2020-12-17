@@ -1,1 +1,1 @@
-# mortalidade_covid_paciente_notificados_sus_privado
+# Mortalidade por COVID-19 em hospitais públicos e privados de Florianópolis/SC
